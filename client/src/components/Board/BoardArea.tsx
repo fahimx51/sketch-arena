@@ -61,7 +61,7 @@ export default function BoardArea({
     };
 
     return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 ">
             {/* 1. Word & Timer Component */}
             <HeaderBar
                 currentWord={currentWord}
@@ -70,16 +70,16 @@ export default function BoardArea({
             />
 
             {/* 2. Drawing Canvas */}
-            <div className="relative bg-white border-4 border-slate-900 rounded-3xl shadow-md overflow-hidden aspect-4/3 flex items-center justify-center">
+            <div className="relative bg-white rounded-3xl shadow-md overflow-hidden h-full flex items-center justify-center">
                 <canvas
                     ref={canvasRef}
-                    width={600}
-                    height={450}
+                    width={500}
+                    height={500}
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
-                    className={`w-full h-full bg-white ${isDrawer ? "cursor-crosshair" : "cursor-not-allowed"
+                    className={`w-full h-full bg-yellow-400/20 ${isDrawer ? "cursor-crosshair" : "cursor-not-allowed"
                         }`}
                 />
 

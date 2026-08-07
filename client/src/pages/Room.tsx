@@ -79,7 +79,7 @@ export default function Room() {
     };
 
     return (
-        <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 select-none">
+        <div className="w-full max-w-7xl min-h-[80vh] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 select-none">
             <div className="lg:col-span-3">
                 <LeftSideBar
                     players={players}

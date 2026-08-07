@@ -8,7 +8,7 @@ export default function MainLayout() {
     return (
         <div className="min-h-screen bg-amber-50 text-slate-800 flex flex-col justify-between p-4 sm:p-6 font-mono selection:bg-yellow-300">
             {/* Top Navbar */}
-            <header className="flex justify-between items-center max-w-6xl mx-auto w-full mb-4 sm:mb-6">
+            <header className="flex justify-between items-center max-w-7xl mx-auto w-full mb-4 sm:mb-6">
                 <Logo />
 
                 <button
@@ -21,7 +21,7 @@ export default function MainLayout() {
             </header>
 
             {/* Main Content View (Home / GameRoom) */}
-            <main className="flex-1 max-w-6xl mx-auto w-full flex flex-col justify-center items-center py-2">
+            <main className="flex-1 max-w-7xl mx-auto w-full flex flex-col justify-center items-center py-2">
                 <Outlet />
             </main>
 
