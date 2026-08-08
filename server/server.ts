@@ -1,6 +1,7 @@
 import http from "http";
 import app from "./app";
-import { initSocket } from "./socket";
+import { initSocket } from "./socket/socket";
+import { generateRoomCode } from "./utils/gameManager";
 
 const PORT = process.env.PORT || 5000;
 
