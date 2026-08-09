@@ -20,7 +20,8 @@ export const registerRoomHandlers = (io: Server, socket: Socket): void => {
             isPrivate: true,
         });
 
-        socket.emit("room_created", { roomCode, room });
+        // Emit room_state so Zustand updates the room object immediately
+        socket.emit("room_state", room);
     });
 
     // 2. JOIN PUBLIC MATCHMAKING
@@ -47,7 +48,7 @@ export const registerRoomHandlers = (io: Server, socket: Socket): void => {
         const cleanCode = roomCode?.trim();
 
         if (!cleanCode || !roomExists(cleanCode)) {
-            socket.emit("error_message", { message: "Room not found." });
+            socket.emit("error_message", "Room not found.");
             return;
         }
 

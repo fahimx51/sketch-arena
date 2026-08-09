@@ -1,10 +1,4 @@
-interface Player {
-    id: string;
-    name: string;
-    avatar: string;
-    score: number;
-    isDrawing: boolean;
-}
+import type { Player } from "../../types";
 
 interface LeftSideBarProps {
     players: Player[];

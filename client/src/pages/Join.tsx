@@ -1,6 +1,6 @@
-// src/pages/Join.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useGameStore } from "../store/useGameStore";
 
 const AVATARS = ["🐶", "🐱", "🦊", "🐼", "🦁", "🐸", "🐵", "🦄"];
 
@@ -16,7 +16,23 @@ export default function Join() {
     const [avatarIndex, setAvatarIndex] = useState(0);
     const [roomCodeInput, setRoomCodeInput] = useState("");
     const [activeTab, setActiveTab] = useState<"random" | "create" | "code" | "bot">("random");
+
     const navigate = useNavigate();
+
+    // Zustand Selectors
+    const isConnected = useGameStore((state) => state.isConnected);
+    const errorMessage = useGameStore((state) => state.errorMessage);
+    const createPrivateRoom = useGameStore((state) => state.createPrivateRoom);
+    const joinPublicRoom = useGameStore((state) => state.joinPublicRoom);
+    const joinPrivateRoom = useGameStore((state) => state.joinPrivateRoom);
+    const room = useGameStore((state) => state.room);
+
+
+    useEffect(() => {
+        if (room?.roomCode) {
+            navigate(`/room/${room.roomCode}`);
+        }
+    }, [room, navigate]);
 
     const handlePrevAvatar = () => {
         setAvatarIndex((prev) => (prev === 0 ? AVATARS.length - 1 : prev - 1));
@@ -30,28 +46,33 @@ export default function Join() {
         e.preventDefault();
         if (!name.trim()) return;
 
-        localStorage.setItem("player_name", name.trim());
-        localStorage.setItem("player_avatar", AVATARS[avatarIndex]);
+        const payload = {
+            name: name.trim(),
+            avatar: AVATARS[avatarIndex],
+        };
 
-        let targetRoom = "";
-
+        // FIX 3: Emit socket actions ONLY — do NOT call navigate() inside the switch
         switch (activeTab) {
             case "random":
-                targetRoom = "PUB-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+                joinPublicRoom(payload);
                 break;
+
             case "create":
-                targetRoom = "PRIV-" + Math.random().toString(36).substring(2, 7).toUpperCase();
+                createPrivateRoom({ ...payload, isPrivate: true });
                 break;
+
             case "code":
                 if (!roomCodeInput.trim()) return;
-                targetRoom = roomCodeInput.trim().toUpperCase();
+                joinPrivateRoom({
+                    ...payload,
+                    roomCode: roomCodeInput.trim().toUpperCase(),
+                });
                 break;
+
             case "bot":
-                targetRoom = "BOT-PRACTICE";
+                navigate("/room/BOT-PRACTICE");
                 break;
         }
-
-        navigate(`/room/${targetRoom}`);
     };
 
     return (
@@ -67,6 +88,13 @@ export default function Join() {
                         Choose your avatar & set up your game
                     </p>
                 </div>
+
+                {/* Display Error Message if Socket Fails */}
+                {errorMessage && (
+                    <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 font-bold text-xs rounded-2xl text-center">
+                        {errorMessage}
+                    </div>
+                )}
 
                 <form onSubmit={handleStartGame} className="flex flex-col gap-6">
 
@@ -133,8 +161,8 @@ export default function Join() {
                                         type="button"
                                         onClick={() => setActiveTab(mode.id as typeof activeTab)}
                                         className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all cursor-pointer ${isActive
-                                                ? "bg-amber-50 border-[#F9D601] ring-2 ring-[#F9D601]/50 shadow-xs"
-                                                : "bg-slate-50 border-slate-100 hover:bg-slate-100/80 text-slate-600"
+                                            ? "bg-amber-50 border-[#F9D601] ring-2 ring-[#F9D601]/50 shadow-xs"
+                                            : "bg-slate-50 border-slate-100 hover:bg-slate-100/80 text-slate-600"
                                             }`}
                                     >
                                         <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900">
@@ -159,7 +187,7 @@ export default function Join() {
                             <input
                                 type="text"
                                 required
-                                placeholder="e.g. PRIV-982A"
+                                placeholder="e.g. ROOM-1234"
                                 value={roomCodeInput}
                                 onChange={(e) => setRoomCodeInput(e.target.value)}
                                 maxLength={12}
@@ -178,12 +206,12 @@ export default function Join() {
                             Cancel
                         </button>
 
-                        {/* 3D Yellow Button */}
                         <div className="relative w-2/3 inline-block">
                             <div className="absolute inset-0 bg-slate-200 translate-x-1 translate-y-1 rounded-xl" />
                             <button
                                 type="submit"
-                                className="relative w-full bg-[#F9D601] hover:bg-[#ffe12c] text-slate-900 text-base font-extrabold tracking-wider py-3.5 rounded-xl border-b-4 border-r-4 border-[#DDAF02] active:translate-x-0.5 active:translate-y-0.5 active:border-b-2 active:border-r-2 transition-all cursor-pointer uppercase"
+                                disabled={!isConnected}
+                                className="relative w-full bg-[#F9D601] hover:bg-[#ffe12c] text-slate-900 text-base font-extrabold tracking-wider py-3.5 rounded-xl border-b-4 border-r-4 border-[#DDAF02] active:translate-x-0.5 active:translate-y-0.5 active:border-b-2 active:border-r-2 transition-all cursor-pointer uppercase disabled:opacity-50"
                             >
                                 {activeTab === "bot" ? "Start Practice" : "Let's Play"}
                             </button>

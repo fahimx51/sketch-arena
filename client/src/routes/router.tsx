@@ -18,7 +18,7 @@ const router = createBrowserRouter([
                 Component: Join
             },
             {
-                path: "room/:roomId",
+                path: "room/:roomCode",
                 Component: Room
             }
         ]
