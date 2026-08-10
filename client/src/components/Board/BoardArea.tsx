@@ -14,9 +14,6 @@ interface BoardAreaProps {
 }
 
 export default function BoardArea({
-    currentWord,
-    maskedHint,
-    timer,
     isDrawer,
     wordChoices = [],
     onSelectWord,
@@ -52,9 +49,6 @@ export default function BoardArea({
     }, [room?.canvasHistory]);
 
     // Display logic: Drawer sees full word, Guesser sees hint
-    const displayWord = isDrawer
-        ? currentWord || "SELECT A WORD"
-        : maskedHint || "_ _ _ _";
 
     const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
@@ -123,7 +117,7 @@ export default function BoardArea({
             )}
 
             {/* Top Header */}
-            <HeaderBar currentWord={displayWord} timer={timer} />
+            <HeaderBar />
 
             {/* Canvas Container */}
             <div className="relative bg-white rounded-3xl shadow-md overflow-hidden h-full flex items-center justify-center">

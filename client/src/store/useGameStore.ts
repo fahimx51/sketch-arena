@@ -30,6 +30,7 @@ interface GameStore {
     wordChoices: string[];
     chatLog: ChatMessage[];
     errorMessage: string | null;
+    revealedWord: string | null; // 1. Declared in interface
 
     // Actions
     createPrivateRoom: (payload: PlayerPayload) => void;
@@ -40,6 +41,7 @@ interface GameStore {
     sendChatMessage: (message: string, senderName: string) => void;
     emitDrawLine: (drawData: DrawStep) => void;
     emitClearCanvas: () => void;
+    setRevealedWord: (word: string | null) => void; // 2. Declared in interface
     leaveRoom: () => void;
     clearError: () => void;
 }
@@ -87,7 +89,6 @@ export const useGameStore = create<GameStore>((set, get) => {
     });
 
     // 2. GAME & WORD HANDLERS
-    // Receives { words: [...] } from backend registerGameHandlers
     socket.on("choose_word", ({ words }: { words: string[] }) => {
         console.log("Received word choices:", words);
         set({ wordChoices: words });
@@ -96,8 +97,9 @@ export const useGameStore = create<GameStore>((set, get) => {
     socket.on("round_started", ({ currentWord, timer }: { currentWord: string; timer: number }) => {
         console.log("Round started with word:", currentWord);
         set((state) => ({
-            wordChoices: [], // Close word selection modal
+            wordChoices: [],
             timer,
+            revealedWord: null, // Reset revealed word for new round
             room: state.room ? { ...state.room, currentWord } : null,
         }));
     });
@@ -109,7 +111,8 @@ export const useGameStore = create<GameStore>((set, get) => {
     socket.on("round_ended", ({ word }: { word: string }) => {
         set((state) => ({
             timer: 0,
-            maskedHint: word, // Show full word when round ends
+            maskedHint: word,
+            revealedWord: null, // Reset revealed word when round ends
             room: state.room ? { ...state.room, currentWord: "" } : null,
         }));
     });
@@ -121,12 +124,15 @@ export const useGameStore = create<GameStore>((set, get) => {
         }));
     });
 
-    // 4. DRAWING HANDLERS
+    // 4. DRAWING & WORD REVEAL HANDLERS
     socket.on("clear_canvas", () => {
         set((state) => {
             if (!state.room) return state;
             return {
-                room: { ...state.room, canvasHistory: [] },
+                room: {
+                    ...state.room,
+                    canvasHistory: [],
+                },
             };
         });
     });
@@ -143,20 +149,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         });
     });
 
-    socket.on("clear_canvas", () => {
-        set((state) => {
-            if (!state.room) return state;
-            return {
-                room: {
-                    ...state.room,
-                    canvasHistory: [], // Clears saved lines
-                },
-            };
-        });
+    socket.on("word_revealed_to_guesser", ({ word }: { word: string }) => {
+        set({ revealedWord: word });
     });
 
     // ----------------------------------------------------
-    // STORE ACTIONS
+    // STORE ACTIONS & INITIAL STATE
     // ----------------------------------------------------
 
     return {
@@ -168,6 +166,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         wordChoices: [],
         chatLog: [],
         errorMessage: null,
+        revealedWord: null, // Implemented state variable
 
         // Actions
         createPrivateRoom: (payload) => socket.emit("create_private_room", payload),
@@ -195,7 +194,7 @@ export const useGameStore = create<GameStore>((set, get) => {
                 socket.emit("send_message", {
                     roomCode,
                     message,
-                    senderName
+                    senderName,
                 });
             }
         },
@@ -223,6 +222,8 @@ export const useGameStore = create<GameStore>((set, get) => {
             }
         },
 
+        setRevealedWord: (word) => set({ revealedWord: word }), // Implemented action method
+
         leaveRoom: () =>
             set({
                 room: null,
@@ -230,6 +231,7 @@ export const useGameStore = create<GameStore>((set, get) => {
                 maskedHint: "",
                 wordChoices: [],
                 chatLog: [],
+                revealedWord: null,
             }),
 
         clearError: () => set({ errorMessage: null }),

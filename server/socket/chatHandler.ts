@@ -41,6 +41,8 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
 
             // 2. Award score once
             addScoreToPlayer(roomCode, socket.id, 100);
+            
+            socket.emit("word_revealed_to_guesser", { word: room.currentWord });
 
             // 3. Broadcast system notification (Hides exact word from chat)
             io.to(roomCode).emit("receive_message", {
@@ -50,8 +52,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
                 isSystem: true,
                 isCorrect: true,
             });
-
-            // 4. Send updated leaderboard scores
+                        // 4. Send updated leaderboard scores
             io.to(roomCode).emit("room_state", room);
             console.log("after guessed the room is ,", room);
 
