@@ -4,67 +4,133 @@ import type {
     JoinRoomPayload,
     PlayerPayload,
     RoomState,
-    SocketErrorPayload,
-    DrawStep
+    DrawStep,
 } from "../types";
+
+export interface ChatMessage {
+    id?: string;
+    sender: string;
+    text: string;
+    isCorrect?: boolean;
+    isSystem?: boolean;
+}
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:5000";
 
 export const socket: Socket = io(SERVER_URL, {
-    transports: ["websocket"],
+    transports: ["polling", "websocket"],
     autoConnect: true,
 });
 
 interface GameStore {
     isConnected: boolean;
     room: RoomState | null;
+    timer: number;
+    maskedHint: string;
+    wordChoices: string[];
+    chatLog: ChatMessage[];
     errorMessage: string | null;
 
     // Actions
     createPrivateRoom: (payload: PlayerPayload) => void;
     joinPublicRoom: (payload: PlayerPayload) => void;
     joinPrivateRoom: (payload: JoinRoomPayload) => void;
+    startWordSelection: () => void;
+    selectWord: (selectedWord: string) => void;
+    sendChatMessage: (message: string, senderName: string) => void;
     emitDrawLine: (drawData: DrawStep) => void;
+    emitClearCanvas: () => void;
     leaveRoom: () => void;
     clearError: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => {
-
-    // -------------------------------------------------------------
-    // GLOBAL SOCKET LISTENERS
-    // -------------------------------------------------------------
+    // ----------------------------------------------------
+    // SOCKET EVENT LISTENERS
+    // ----------------------------------------------------
 
     socket.on("connect", () => {
-        console.log("Connected to server:", socket.id);
-        set({ isConnected: true });
+        console.log("Socket connected:", socket.id);
+        set({ isConnected: true, errorMessage: null });
     });
 
     socket.on("disconnect", () => {
-        console.log("Disconnected from server");
         set({ isConnected: false });
     });
 
-    // Handle private room creation response ({ roomCode, room })
-    socket.on("room_created", ({ room }: { roomCode: string; room: RoomState }) => {
-        console.log("Room Created:", room);
-        set({ room, errorMessage: null });
+    socket.on("connect_error", (error) => {
+        console.error("Socket connect error:", error.message);
+        set({ isConnected: false, errorMessage: "Cannot connect to server." });
     });
 
-    // Handle public join & code join responses (room)
-    socket.on("room_state", (room: RoomState) => {
-        console.log("Room State Received:", room);
-        set({ room, errorMessage: null });
+    // 1. ROOM STATE HANDLERS
+    socket.on("room_state", (roomData: RoomState) => {
+        console.log("Received room_state:", roomData);
+        set({ room: roomData, errorMessage: null });
     });
 
-    // Listen for new players joining the room
     socket.on("player_joined", (players) => {
+        set((state) => {
+            if (!state.room) return state;
+            return {
+                room: {
+                    ...state.room,
+                    players,
+                },
+            };
+        });
+    });
+
+    socket.on("error_message", (message: string) => {
+        console.error("Server Error:", message);
+        set({ errorMessage: message });
+    });
+
+    // 2. GAME & WORD HANDLERS
+    // Receives { words: [...] } from backend registerGameHandlers
+    socket.on("choose_word", ({ words }: { words: string[] }) => {
+        console.log("Received word choices:", words);
+        set({ wordChoices: words });
+    });
+
+    socket.on("round_started", ({ currentWord, timer }: { currentWord: string; timer: number }) => {
+        console.log("Round started with word:", currentWord);
         set((state) => ({
-            room: state.room ? { ...state.room, players } : null,
+            wordChoices: [], // Close word selection modal
+            timer,
+            room: state.room ? { ...state.room, currentWord } : null,
         }));
     });
 
-    // Listen for real-time incoming drawing steps from other players
+    socket.on("timer_update", ({ timer, maskedHint }: { timer: number; maskedHint: string }) => {
+        set({ timer, maskedHint });
+    });
+
+    socket.on("round_ended", ({ word }: { word: string }) => {
+        set((state) => ({
+            timer: 0,
+            maskedHint: word, // Show full word when round ends
+            room: state.room ? { ...state.room, currentWord: "" } : null,
+        }));
+    });
+
+    // 3. CHAT HANDLERS
+    socket.on("receive_message", (msg: ChatMessage) => {
+        set((state) => ({
+            chatLog: [...state.chatLog, msg],
+        }));
+    });
+
+    // 4. DRAWING HANDLERS
+    socket.on("clear_canvas", () => {
+        set((state) => {
+            if (!state.room) return state;
+            return {
+                room: { ...state.room, canvasHistory: [] },
+            };
+        });
+    });
+
     socket.on("draw_line", (drawData: DrawStep) => {
         set((state) => {
             if (!state.room) return state;
@@ -77,43 +143,67 @@ export const useGameStore = create<GameStore>((set, get) => {
         });
     });
 
-    // Handle server error messages
-    socket.on("error_message", ({ message }: SocketErrorPayload) => {
-        console.error("Socket Error:", message);
-        set({ errorMessage: message });
+    socket.on("clear_canvas", () => {
+        set((state) => {
+            if (!state.room) return state;
+            return {
+                room: {
+                    ...state.room,
+                    canvasHistory: [], // Clears saved lines
+                },
+            };
+        });
     });
 
-    // -------------------------------------------------------------
+    // ----------------------------------------------------
     // STORE ACTIONS
-    // -------------------------------------------------------------
+    // ----------------------------------------------------
 
     return {
+        // Initial State
         isConnected: socket.connected,
         room: null,
+        timer: 60,
+        maskedHint: "",
+        wordChoices: [],
+        chatLog: [],
         errorMessage: null,
 
-        createPrivateRoom: (payload) => {
-            socket.emit("create_private_room", payload);
+        // Actions
+        createPrivateRoom: (payload) => socket.emit("create_private_room", payload),
+        joinPublicRoom: (payload) => socket.emit("join_public_room", payload),
+        joinPrivateRoom: (payload) => socket.emit("join_room", payload),
+
+        startWordSelection: () => {
+            const roomCode = get().room?.roomCode;
+            if (roomCode) {
+                socket.emit("start_word_selection", { roomCode });
+            }
         },
 
-        joinPublicRoom: (payload) => {
-            socket.emit("join_public_room", payload);
+        selectWord: (selectedWord) => {
+            const roomCode = get().room?.roomCode;
+            if (roomCode) {
+                socket.emit("select_word", { roomCode, selectedWord });
+                set({ wordChoices: [] });
+            }
         },
 
-        joinPrivateRoom: (payload) => {
-            socket.emit("join_room", payload);
+        sendChatMessage: (message: string, senderName: string) => {
+            const roomCode = get().room?.roomCode;
+            if (roomCode) {
+                socket.emit("send_message", {
+                    roomCode,
+                    message,
+                    senderName
+                });
+            }
         },
 
         emitDrawLine: (drawData) => {
             const currentRoom = get().room;
             if (currentRoom?.roomCode) {
-                // Emit line data to backend
-                socket.emit("draw_line", {
-                    roomCode: currentRoom.roomCode,
-                    drawData,
-                });
-
-                // Optimistically update local canvas history
+                socket.emit("draw_line", { roomCode: currentRoom.roomCode, drawData });
                 set({
                     room: {
                         ...currentRoom,
@@ -123,9 +213,24 @@ export const useGameStore = create<GameStore>((set, get) => {
             }
         },
 
-        leaveRoom: () => {
-            set({ room: null });
+        emitClearCanvas: () => {
+            const currentRoom = get().room;
+            if (currentRoom?.roomCode) {
+                socket.emit("clear_canvas", { roomCode: currentRoom.roomCode });
+                set({
+                    room: { ...currentRoom, canvasHistory: [] },
+                });
+            }
         },
+
+        leaveRoom: () =>
+            set({
+                room: null,
+                timer: 60,
+                maskedHint: "",
+                wordChoices: [],
+                chatLog: [],
+            }),
 
         clearError: () => set({ errorMessage: null }),
     };

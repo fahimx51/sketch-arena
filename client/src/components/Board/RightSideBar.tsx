@@ -1,11 +1,5 @@
 import React, { useEffect, useRef } from "react";
-
-export interface ChatMessage {
-    sender: string;
-    text: string;
-    isCorrect?: boolean;
-    isSystem?: boolean;
-}
+import type { ChatMessage } from "../../store/useGameStore";
 
 interface RightSideBarProps {
     chatLog: ChatMessage[];
@@ -24,22 +18,21 @@ export default function RightSideBar({
 }: RightSideBarProps) {
     const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-    // Auto-scroll to bottom on new message
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatLog]);
 
     return (
         <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 shadow-sm flex flex-col justify-between h-[480px] lg:h-full">
-            <h2 className="text-sm font-extrabold uppercase text-slate-900 tracking-wider mb-2 pb-2 border-b border-slate-100 flex items-center justify-between">
-                <span>Guesses & Chat</span>
+            <h2 className="text-sm font-extrabold uppercase text-slate-900 tracking-wider mb-2 pb-2 border-b border-slate-100">
+                Guesses & Chat
             </h2>
 
-            {/* Chat List */}
+            {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 my-2 text-xs scroll-smooth">
                 {chatLog.map((msg, index) => (
                     <div
-                        key={index}
+                        key={msg.id || index}
                         className={`p-2.5 rounded-xl transition-all ${msg.isCorrect
                             ? "bg-green-100 text-green-900 font-bold border border-green-200 text-center shadow-xs"
                             : msg.isSystem

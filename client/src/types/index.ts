@@ -10,7 +10,6 @@ export interface JoinRoomPayload extends PlayerPayload {
     roomCode: string;
 }
 
-
 // Payload for chat messages
 export interface ChatMessagePayload {
     roomCode: string;
@@ -22,7 +21,6 @@ export interface ChatMessagePayload {
 export interface SocketErrorPayload {
     message: string;
 }
-
 
 // Player model
 export interface Player {

@@ -165,3 +165,22 @@ export const addScoreToPlayer = (
         player.score += points;
     }
 };
+
+export const rotateDrawer = (roomCode: string): string | null => {
+    const room = getRoomState(roomCode);
+    if (!room || room.players.length === 0) return null;
+
+    // 1. Find current drawer index
+    const currentIndex = room.players.findIndex((p) => p.isDrawing);
+
+    // 2. Unmark current drawer
+    if (currentIndex !== -1) {
+        room.players[currentIndex].isDrawing = false;
+    }
+
+    // 3. Select next player (loop back to start if at the end)
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % room.players.length;
+    room.players[nextIndex].isDrawing = true;
+
+    return room.players[nextIndex].id;
+};

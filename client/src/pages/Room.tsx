@@ -1,67 +1,69 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import LeftSideBar from "../components/Board/LeftSideBar";
 import BoardArea from "../components/Board/BoardArea";
 import RightSideBar from "../components/Board/RightSideBar";
 import { socket, useGameStore } from "../store/useGameStore";
 
-interface ChatMessage {
-    id: string;
-    sender: string;
-    text: string;
-    isCorrect?: boolean;
-    isSystem?: boolean;
-}
-
 export default function Room() {
+    const navigate = useNavigate();
     const { roomCode } = useParams<{ roomCode: string }>();
 
-    const room = useGameStore((state) => state.room);
-
-    const currentName = localStorage.getItem("player_name") || "Doodler";
+    const {
+        room,
+        timer,
+        maskedHint,
+        wordChoices,
+        chatLog,
+        startWordSelection,
+        selectWord,
+        sendChatMessage,
+        isConnected,
+    } = useGameStore();
 
     const [guessInput, setGuessInput] = useState("");
-    const [chatLog, setChatLog] = useState<ChatMessage[]>([
-        { id: "1", sender: "System", text: "Welcome to the game!", isSystem: true },
-    ]);
 
-    // Determine if current player is the drawer
     const me = room?.players?.find((p) => p.id === socket.id);
     const isDrawer = me?.isDrawing ?? false;
+    const currentName = me?.name || "Unknown Player";
 
-    // 1. Listen for incoming socket messages
+    // 1. FIX: Wait briefly or check socket connection before redirecting
     useEffect(() => {
-        // 1. Define named handler
-        const handleReceiveMessage = (message: ChatMessage) => {
-            setChatLog((prev) => [...prev, message]);
-        };
+        // Only redirect if socket has finished connecting and still no room exists
+        const timeout = setTimeout(() => {
+            if (!room && isConnected) {
+                console.warn("No room state found, redirecting to join...");
+                navigate("/join");
+            }
+        }, 1000); // 1-second buffer for socket sync
 
-        // 2. Attach listener
-        socket.on("receive_message", handleReceiveMessage);
+        return () => clearTimeout(timeout);
+    }, [room, isConnected, navigate]);
 
-        // 3. Remove ONLY this specific listener function on unmount
-        return () => {
-            socket.off("receive_message", handleReceiveMessage);
-        };
-    }, []);
+    // Fetch word choices when becoming the drawer
+    useEffect(() => {
+        if (isDrawer && roomCode && !room?.currentWord) {
+            startWordSelection();
+        }
+    }, [isDrawer, roomCode, room?.currentWord, startWordSelection]);
 
-    // 2. Emit message to backend on form submit
     const handleSendChat = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!guessInput.trim() || !roomCode) return;
+        if (!guessInput.trim()) return;
 
-        const trimmedMessage = guessInput.trim();
-
-
-        // 2. Emit to backend for other players
-        socket.emit("send_message", {
-            roomCode,
-            message: trimmedMessage,
-            senderName: currentName,
-        });
-
+        sendChatMessage(guessInput.trim(), currentName);
         setGuessInput("");
     };
+
+    // 2. Show a loading screen while waiting for room data from socket
+    if (!room) {
+        return (
+            <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                <p className="text-slate-600 font-bold text-sm">Loading room data...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full max-w-7xl min-h-[80vh] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 select-none">
@@ -70,15 +72,17 @@ export default function Room() {
                     players={room?.players || []}
                     roomCode={roomCode}
                     isDrawer={isDrawer}
-                    onToggleRole={() => { }}
                 />
             </div>
 
             <div className="lg:col-span-6">
                 <BoardArea
                     currentWord={room?.currentWord || ""}
-                    timer={room?.timer || 60}
+                    maskedHint={maskedHint}
+                    timer={timer}
                     isDrawer={isDrawer}
+                    wordChoices={wordChoices}
+                    onSelectWord={selectWord}
                 />
             </div>
 

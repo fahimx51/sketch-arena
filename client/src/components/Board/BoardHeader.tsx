@@ -1,14 +1,9 @@
 interface BoardHeaderProps {
     currentWord: string;
     timer: number;
-    isDrawer: boolean;
 }
 
-export default function BoardHeader({
-    currentWord,
-    timer,
-    isDrawer,
-}: BoardHeaderProps) {
+export default function BoardHeader({ currentWord, timer }: BoardHeaderProps) {
     return (
         <div className="bg-white border-2 border-slate-200 rounded-2xl p-3 px-6 flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
@@ -16,7 +11,7 @@ export default function BoardHeader({
                     Word:
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-widest">
-                    {isDrawer ? currentWord : currentWord.replace(/./g, "_ ")}
+                    {currentWord}
                 </span>
             </div>
 

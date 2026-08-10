@@ -28,7 +28,9 @@ export default function Join() {
     const room = useGameStore((state) => state.room);
 
 
+    // Watch for room state changes to redirect
     useEffect(() => {
+        console.log("room ", room);
         if (room?.roomCode) {
             navigate(`/room/${room.roomCode}`);
         }
@@ -51,14 +53,13 @@ export default function Join() {
             avatar: AVATARS[avatarIndex],
         };
 
-        // FIX 3: Emit socket actions ONLY — do NOT call navigate() inside the switch
         switch (activeTab) {
             case "random":
                 joinPublicRoom(payload);
                 break;
 
             case "create":
-                createPrivateRoom({ ...payload, isPrivate: true });
+                createPrivateRoom(payload);
                 break;
 
             case "code":
@@ -88,6 +89,14 @@ export default function Join() {
                         Choose your avatar & set up your game
                     </p>
                 </div>
+
+                {/* Connection Status Indicator */}
+                {!isConnected && (
+                    <div className="mb-6 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 font-bold text-xs rounded-2xl text-center flex items-center justify-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                        Connecting to server...
+                    </div>
+                )}
 
                 {/* Display Error Message if Socket Fails */}
                 {errorMessage && (
